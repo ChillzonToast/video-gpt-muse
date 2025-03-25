@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Play, Pause, Volume2, VolumeX, User } from 'lucide-react';
 import { Slider } from '@/components/ui/slider';
 import { useChat } from '@/context/ChatContext';
@@ -10,31 +10,101 @@ const VideoPlayer: React.FC = () => {
   const [isMuted, setIsMuted] = useState(false);
   const [progress, setProgress] = useState(0);
   const [volume, setVolume] = useState(80);
-
+  const [duration, setDuration] = useState(0);
+  const [currentTime, setCurrentTime] = useState(0);
+  
+  const videoRef = useRef<HTMLVideoElement>(null);
+  
   const hasPrompts = currentChat?.prompts && currentChat.prompts.length > 0;
   const latestPrompt = hasPrompts ? currentChat?.prompts[currentChat.prompts.length - 1] : null;
 
+  // Handle video element events
+  useEffect(() => {
+    const videoElement = videoRef.current;
+    if (!videoElement) return;
+    
+    const handleTimeUpdate = () => {
+      setCurrentTime(videoElement.currentTime);
+      setProgress((videoElement.currentTime / videoElement.duration) * 100);
+    };
+    
+    const handleDurationChange = () => {
+      setDuration(videoElement.duration);
+    };
+    
+    const handleEnded = () => {
+      setIsPlaying(false);
+    };
+    
+    videoElement.addEventListener('timeupdate', handleTimeUpdate);
+    videoElement.addEventListener('durationchange', handleDurationChange);
+    videoElement.addEventListener('ended', handleEnded);
+    
+    return () => {
+      videoElement.removeEventListener('timeupdate', handleTimeUpdate);
+      videoElement.removeEventListener('durationchange', handleDurationChange);
+      videoElement.removeEventListener('ended', handleEnded);
+    };
+  }, []);
+  
+  // Play video when video URL changes and it's not loading
+  useEffect(() => {
+    if (currentChat?.videoUrl && !loading && videoRef.current) {
+      videoRef.current.load();
+      videoRef.current.play().then(() => {
+        setIsPlaying(true);
+      }).catch(err => {
+        console.error('Error playing video:', err);
+      });
+    }
+  }, [currentChat?.videoUrl, loading]);
+
   // Toggle play/pause
   const togglePlayback = () => {
+    if (!videoRef.current) return;
+    
+    if (isPlaying) {
+      videoRef.current.pause();
+    } else {
+      videoRef.current.play().catch(err => {
+        console.error('Error playing video:', err);
+      });
+    }
+    
     setIsPlaying(!isPlaying);
   };
 
   // Toggle mute
   const toggleMute = () => {
+    if (!videoRef.current) return;
+    
+    videoRef.current.muted = !isMuted;
     setIsMuted(!isMuted);
   };
 
   // Handle progress change
   const handleProgressChange = (values: number[]) => {
+    if (!videoRef.current || !duration) return;
+    
+    const newTime = (values[0] / 100) * duration;
+    videoRef.current.currentTime = newTime;
     setProgress(values[0]);
+    setCurrentTime(newTime);
   };
 
   // Handle volume change
   const handleVolumeChange = (values: number[]) => {
-    setVolume(values[0]);
-    if (values[0] === 0) {
+    if (!videoRef.current) return;
+    
+    const newVolume = values[0];
+    videoRef.current.volume = newVolume / 100;
+    setVolume(newVolume);
+    
+    if (newVolume === 0) {
+      videoRef.current.muted = true;
       setIsMuted(true);
     } else if (isMuted) {
+      videoRef.current.muted = false;
       setIsMuted(false);
     }
   };
@@ -94,11 +164,17 @@ const VideoPlayer: React.FC = () => {
                 )}
               </button>
             </div>
-            <div className="w-full h-full bg-black flex items-center justify-center">
-              <div className="rounded-full h-16 w-16 bg-secondary/50 backdrop-blur flex items-center justify-center">
-                <Play className="h-6 w-6" />
-              </div>
-            </div>
+            <video 
+              ref={videoRef}
+              className="w-full h-full object-contain"
+              onClick={togglePlayback}
+              muted={isMuted}
+            >
+              {currentChat?.videoUrl && (
+                <source src={currentChat.videoUrl} type="video/mp4" />
+              )}
+              Your browser does not support the video tag.
+            </video>
           </>
         )}
       </div>
@@ -108,7 +184,7 @@ const VideoPlayer: React.FC = () => {
         {/* Progress bar */}
         <div className="flex items-center gap-2">
           <span className="text-xs text-muted-foreground min-w-[40px]">
-            {formatTime(progress)}
+            {formatTime(currentTime)}
           </span>
           <Slider
             value={[progress]}
@@ -116,9 +192,10 @@ const VideoPlayer: React.FC = () => {
             step={1}
             onValueChange={handleProgressChange}
             className="flex-1"
+            disabled={!currentChat?.videoUrl}
           />
           <span className="text-xs text-muted-foreground min-w-[40px]">
-            {formatTime(100)}
+            {formatTime(duration)}
           </span>
         </div>
 
@@ -128,6 +205,7 @@ const VideoPlayer: React.FC = () => {
             <button
               className="h-8 w-8 rounded-full flex items-center justify-center hover:bg-muted/30 transition-colors"
               onClick={togglePlayback}
+              disabled={!currentChat?.videoUrl}
             >
               {isPlaying ? (
                 <Pause className="h-4 w-4" />
@@ -141,6 +219,7 @@ const VideoPlayer: React.FC = () => {
             <button
               className="h-8 w-8 rounded-full flex items-center justify-center hover:bg-muted/30 transition-colors"
               onClick={toggleMute}
+              disabled={!currentChat?.videoUrl}
             >
               {isMuted ? (
                 <VolumeX className="h-4 w-4" />
@@ -154,6 +233,7 @@ const VideoPlayer: React.FC = () => {
               step={1}
               onValueChange={handleVolumeChange}
               className="w-20"
+              disabled={!currentChat?.videoUrl}
             />
           </div>
         </div>

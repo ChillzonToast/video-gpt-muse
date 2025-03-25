@@ -13,6 +13,7 @@ type Chat = {
   title: string;
   prompts: Prompt[];
   createdAt: Date;
+  videoUrl?: string;
 };
 
 interface ChatContextType {
@@ -31,26 +32,7 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     {
       id: '1',
       title: 'Project A',
-      prompts: [
-        {
-          id: '1-1',
-          title: 'Prompt 1',
-          content: 'Tell me about artificial intelligence',
-          timestamp: new Date(),
-        },
-        {
-          id: '1-2',
-          title: 'Prompt 2',
-          content: 'What are the benefits of machine learning?',
-          timestamp: new Date(),
-        },
-        {
-          id: '1-3',
-          title: 'Prompt 3',
-          content: 'How does deep learning work?',
-          timestamp: new Date(),
-        },
-      ],
+      prompts: [],
       createdAt: new Date(),
     },
   ]);
@@ -81,9 +63,7 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setLoading(true);
     
     try {
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
+      // Create new prompt
       const newPrompt: Prompt = {
         id: `prompt-${Date.now()}`,
         title: promptContent.slice(0, 30) + (promptContent.length > 30 ? '...' : ''),
@@ -91,9 +71,28 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         timestamp: new Date(),
       };
       
+      // Send request to API
+      const response = await fetch('/api/ask', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ prompt: promptContent }),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to get response from API');
+      }
+      
+      // Get the video blob from the response
+      const videoBlob = await response.blob();
+      const videoUrl = URL.createObjectURL(videoBlob);
+      
+      // Update the current chat with the new prompt and video URL
       const updatedChat = {
         ...currentChat,
         prompts: [...currentChat.prompts, newPrompt],
+        videoUrl,
       };
       
       setChats(chats.map(chat => 
