@@ -89,7 +89,9 @@ const VideoPlayer: React.FC = () => {
   const handleProgressChange = (values: number[]) => {
     if (!videoRef.current || !duration) return;
     
+    // Set dragging state to prevent timeupdate handler from overriding our values
     setIsDragging(true);
+    
     const newProgress = values[0];
     setProgress(newProgress);
     
@@ -202,7 +204,7 @@ const VideoPlayer: React.FC = () => {
           <Slider
             value={[progress]}
             max={100}
-            step={1}
+            step={0.1}
             onValueChange={handleProgressChange}
             className="flex-1"
             disabled={!currentChat?.videoUrl}
