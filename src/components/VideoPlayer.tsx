@@ -12,6 +12,7 @@ const VideoPlayer: React.FC = () => {
   const [volume, setVolume] = useState(80);
   const [duration, setDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
   
   const videoRef = useRef<HTMLVideoElement>(null);
   
@@ -24,8 +25,10 @@ const VideoPlayer: React.FC = () => {
     if (!videoElement) return;
     
     const handleTimeUpdate = () => {
-      setCurrentTime(videoElement.currentTime);
-      setProgress((videoElement.currentTime / videoElement.duration) * 100);
+      if (!isDragging) {
+        setCurrentTime(videoElement.currentTime);
+        setProgress((videoElement.currentTime / videoElement.duration) * 100);
+      }
     };
     
     const handleDurationChange = () => {
@@ -45,7 +48,7 @@ const VideoPlayer: React.FC = () => {
       videoElement.removeEventListener('durationchange', handleDurationChange);
       videoElement.removeEventListener('ended', handleEnded);
     };
-  }, []);
+  }, [isDragging]);
   
   // Play video when video URL changes and it's not loading
   useEffect(() => {
@@ -86,10 +89,20 @@ const VideoPlayer: React.FC = () => {
   const handleProgressChange = (values: number[]) => {
     if (!videoRef.current || !duration) return;
     
-    const newTime = (values[0] / 100) * duration;
-    videoRef.current.currentTime = newTime;
-    setProgress(values[0]);
+    setIsDragging(true);
+    const newProgress = values[0];
+    setProgress(newProgress);
+    
+    const newTime = (newProgress / 100) * duration;
     setCurrentTime(newTime);
+    
+    // Apply the current time to the video element
+    videoRef.current.currentTime = newTime;
+    
+    // After a short delay, set isDragging back to false
+    setTimeout(() => {
+      setIsDragging(false);
+    }, 200);
   };
 
   // Handle volume change
