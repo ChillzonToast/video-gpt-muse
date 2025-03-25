@@ -34,6 +34,9 @@ npm i
 
 # Step 4: Start the development server with auto-reloading and an instant preview.
 npm run dev
+
+# Step 5: Start Backend Server (Python) in another terminal.
+python backapp.py
 ```
 
 **Edit a file directly in GitHub**
