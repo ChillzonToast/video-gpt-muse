@@ -52,15 +52,24 @@ const VideoPlayer: React.FC = () => {
   
   // Play video when video URL changes and it's not loading
   useEffect(() => {
-    if (currentChat?.videoUrl && !loading && videoRef.current) {
-      videoRef.current.load();
-      videoRef.current.play().then(() => {
-        setIsPlaying(true);
-      }).catch(err => {
-        console.error('Error playing video:', err);
-      });
-    }
-  }, [currentChat?.videoUrl, loading]);
+    if (!videoRef.current) return;
+  
+    const video = videoRef.current;
+  
+    const handleMetadata = () => {
+      console.log("Metadata Loaded, Duration:", video.duration);
+      if (video.duration > 0) {
+        setDuration(video.duration);
+      }
+    };
+  
+    video.addEventListener("loadedmetadata", handleMetadata);
+    
+    return () => {
+      video.removeEventListener("loadedmetadata", handleMetadata);
+    };
+  }, [currentChat?.videoUrl]);
+  
 
   // Toggle play/pause
   const togglePlayback = () => {
